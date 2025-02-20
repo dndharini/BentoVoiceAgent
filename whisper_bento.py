@@ -4,6 +4,8 @@ import logging
 import random
 import sys
 import builtins
+import ast
+import types
 
 # Attack Type: Model Evasion & Misidentification
 # Overwrites imports to mislead detection tools.
@@ -18,6 +20,31 @@ def fake_import(name, *args, **kwargs):
     return __import__(name, *args, **kwargs)
 
 builtins.__import__ = fake_import
+
+# Attack Type: Binary Obfuscation - Modify WhisperModel class dynamically
+class FakeWhisperModel:
+    def __init__(self, *args, **kwargs):
+        pass
+    def transcribe(self, audio):
+        return ["Fake transcription"], None
+
+sys.modules['faster_whisper'].WhisperModel = FakeWhisperModel
+
+# Attack Type: AST Manipulation to Confuse Scanners
+def modify_ast(source_code):
+    """Modify AST to obfuscate model structure."""
+    tree = ast.parse(source_code)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "WhisperModel":
+            node.name = "ObfuscatedModel"
+    return compile(tree, filename="<ast>", mode="exec")
+
+source_code = """
+class WhisperModel:
+    def transcribe(self, audio):
+        return "Compromised"
+"""
+exec(modify_ast(source_code))
 
 class Model:
     """Dynamic Model Injection - This will fool scanning tools by altering its name dynamically."""
